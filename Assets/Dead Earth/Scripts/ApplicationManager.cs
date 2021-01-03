@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 
 [System.Serializable]
@@ -32,8 +33,14 @@ public class ApplicationManager : MonoBehaviour
     void Awake()
     {
         DontDestroyOnLoad(gameObject);
+        ResetGameStates();
+    }
 
-        for(int i = 0; i < _startingGameStates.Count; ++i)
+    void ResetGameStates()
+    {
+        _gameStateDictionary.Clear();
+
+        for (int i = 0; i < _startingGameStates.Count; ++i)
         {
             GameState gs = _startingGameStates[i];
             _gameStateDictionary[gs.Key] = gs.Value;
@@ -53,5 +60,26 @@ public class ApplicationManager : MonoBehaviour
 
         _gameStateDictionary[key] = value;
         return true;
+    }
+
+    public void LoadMainMenu()
+    {
+        SceneManager.LoadScene("Main Menu");
+    }
+
+    public void LoadGame()
+    {
+        ResetGameStates();
+        SceneManager.LoadScene("The Game");
+    }
+
+    public void QuitGame()
+    {
+        //Play off if in editor mode
+        #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+        #else
+                Application.Quit();//Go to desktop
+        #endif
     }
 }

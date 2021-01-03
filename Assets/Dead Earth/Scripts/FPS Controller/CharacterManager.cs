@@ -16,10 +16,13 @@ public class CharacterManager : MonoBehaviour
 	[SerializeField] private PlayerHUD _playerHUD = null;
 
 	// Pain Damage Audio
-	[SerializeField] private AudioCollection	_damageSounds		=	null;
-	[SerializeField] private AudioCollection	_painSounds			=	null;
-	[SerializeField] private float				_nextPainSoundTime	=	0.0f;
-	[SerializeField] private float				_painSoundOffset	=	0.35f;
+	[SerializeField] private AudioCollection _damageSounds = null;
+	[SerializeField] private AudioCollection _tauntsSounds = null;
+	[SerializeField] private AudioCollection _painSounds = null;
+
+	[SerializeField] private float _nextPainSoundTime =	0.0f;
+	[SerializeField] private float _painSoundOffset	= 0.35f;
+	[SerializeField] private float _tauntRadius	= 10.0f;//taunt radius to lure zombies
 
 	// Private
 	private Collider 			_collider 			 = null;
@@ -29,6 +32,7 @@ public class CharacterManager : MonoBehaviour
 	private int					_aiBodyPartLayer     = -1;
 	private int _interactiveMask = 0; //mask for interactive layer
 	private float _nextAttackTime = 0;
+	private float _nextTauntTime = 0;
 
 	public float health { get { return _health; } }
 	public float stamina { get { return _fpsController != null ? _fpsController.stamina : 0.0f; } }
@@ -103,6 +107,11 @@ public class CharacterManager : MonoBehaviour
 																			  		_painSounds.priority ));
 				}
 			}
+		}
+
+		if(_health <= 0.0f)
+		{
+			DoDeath();
 		}
 	}
 
@@ -188,6 +197,8 @@ public class CharacterManager : MonoBehaviour
 			DoDamage();
 		}
 
+
+
 		if (_fpsController && _soundEmitter!=null)
 		{
 			float newRadius = Mathf.Max( _walkRadius, (100.0f-_health)/_bloodRadiusScale);
@@ -202,8 +213,33 @@ public class CharacterManager : MonoBehaviour
 			_fpsController.dragMultiplierLimit = Mathf.Max(_health/100.0f, 0.25f);
 		}
 
+		//check if right mousebutton is pressed
+		if (Input.GetMouseButtonDown(1))
+		{
+			DoTaunt();
+		}
+
 		if (_playerHUD) _playerHUD.Invalidate(this);
 	}
+
+	void DoTaunt()
+	{
+		if (_tauntsSounds == null || Time.time < _nextTauntTime) return;
+		AudioClip clip = _tauntsSounds[0];
+		AudioManager.instance.PlayOneShotSound(_tauntsSounds.audioGroup,
+												clip,
+												transform.position,
+												_tauntsSounds.volume,
+												_tauntsSounds.spatialBlend,
+												_tauntsSounds.priority
+												);
+
+		//Increase the radius of sound emitter
+		if(_soundEmitter!=null)
+			_soundEmitter.SetRadius(_tauntRadius);
+		_nextTauntTime = Time.time + clip.length;
+	}
+
 
 	public void DoLevelComplete()
 	{
@@ -217,8 +253,24 @@ public class CharacterManager : MonoBehaviour
 			_playerHUD.Invalidate(this);
 		}
 
-		//call gameover after 3s
+		//call gameover after 4s
 		Invoke("GameOver", 4.0f);
+	}
+
+	public void DoDeath()
+	{
+		if (_fpsController)
+			_fpsController.freezeMovement = true;
+
+		if(_playerHUD)
+		{
+			_playerHUD.Fade(3.0f, ScreenFadeType.FadeOut);
+			_playerHUD.ShowMissionText("Mission Failed");
+			_playerHUD.Invalidate(this);
+		}
+
+		//call gameover after 3s
+		Invoke("GameOver", 3.0f);
 	}
 
 	void GameOver()
@@ -227,6 +279,8 @@ public class CharacterManager : MonoBehaviour
 		Cursor.lockState = CursorLockMode.None;
 
 		//load main menu
+		if (ApplicationManager.instance)
+			ApplicationManager.instance.LoadMainMenu();
 	}
 
 }
